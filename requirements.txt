@@ -1,0 +1,7 @@
+python-telegram-bot[job-queue]
+telethon
+pyroblack
+pymongo
+flask
+gunicorn
+python-dotenv
