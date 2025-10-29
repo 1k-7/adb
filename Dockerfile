@@ -1,6 +1,9 @@
 # Use an official lightweight Python image
 FROM python:3.11-slim
 
+# Install supervisor and OS dependencies first
+RUN apt-get update && apt-get install -y supervisor
+
 # Set environment variables for Python
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -21,24 +24,18 @@ COPY . .
 # Create the directory for session files
 RUN mkdir sessions
 
-#
-# --- CORRECTED USER PERMISSIONS (NEW) ---
-# Create a system group and user
+# Create user and set permissions
 RUN addgroup --system appgroup && \
-    adduser --system --ingroup appgroup --no-create-home appuser
-# Give that user ownership of the app directory
-RUN chown -R appuser:appgroup /app
-# Give the user full Read/Write/Execute permissions on its own directory
-RUN chmod -R u+rwx /app
-# Switch to this new user
+    adduser --system --ingroup appgroup --no-create-home appuser && \
+    chown -R appuser:appgroup /app && \
+    chmod -R u+rwx /app
 USER appuser
-# --- END CORRECTION ---
 
-# Make the start script executable
-RUN chmod +x ./start.sh
+# Copy supervisor config into the container
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose the port Koyeb will use for the web service
 EXPOSE 8080
 
-# Set the new start script as the main command
-CMD ["./start.sh"]
+# Run supervisor. This will now be the main process.
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

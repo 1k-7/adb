@@ -5,3 +5,4 @@ pymongo
 flask
 gunicorn
 python-dotenv
+supervisor
