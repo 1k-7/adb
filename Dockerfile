@@ -22,12 +22,14 @@ COPY . .
 RUN mkdir sessions
 
 #
-# --- CORRECTED USER CREATION ---
+# --- CORRECTED USER PERMISSIONS (NEW) ---
 # Create a system group and user
 RUN addgroup --system appgroup && \
     adduser --system --ingroup appgroup --no-create-home appuser
 # Give that user ownership of the app directory
 RUN chown -R appuser:appgroup /app
+# Give the user full Read/Write/Execute permissions on its own directory
+RUN chmod -R u+rwx /app
 # Switch to this new user
 USER appuser
 # --- END CORRECTION ---
