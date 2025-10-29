@@ -90,13 +90,20 @@ async def load_and_verify_accounts():
             elif client_type == "pyrogram":
                 if Client is None:
                     continue
-                # Pyrogram's 'name' is the session file path *without extension*
+                
+                #
+                # --- THIS IS THE FIX ---
+                # The 'name' should be just the session name, not the path.
+                # The 'workdir' handles the path.
+                #
                 client = Client(
-                    name=os.path.join("sessions", pyrogram_session_name),
+                    name=pyrogram_session_name, # CHANGED
                     api_id=api_id,
                     api_hash=api_hash,
-                    workdir="sessions"
+                    workdir="sessions" # This tells Pyrogram to look in the /app/sessions/ folder
                 )
+                # --- END OF FIX ---
+                
                 await client.start() # Pyrogram uses start() to connect
                 
             # Success!
@@ -112,7 +119,7 @@ async def load_and_verify_accounts():
                 {"_id": acc['_id']},
                 {"$set": {"status": "error", "error_message": "2FA/Auth required"}}
             )
-            if client:
+            if client and client.is_connected:
                 await (client.disconnect() if client_type == "telethon" else client.stop())
         
         except Exception as e:
@@ -121,7 +128,7 @@ async def load_and_verify_accounts():
                 {"_id": acc['_id']},
                 {"$set": {"status": "error", "error_message": str(e)}}
             )
-            if client:
+            if client and client.is_connected:
                 await (client.disconnect() if client_type == "telethon" else client.stop())
 
 async def get_next_client_details():
@@ -229,7 +236,7 @@ async def worker_loop():
                         await client.send_video(target_id, file_id, caption=caption)
 
                 elif msg_type == "document":
-                    file_id = message_data.get("file_id")
+                    file_id =.get("file_id")
                     caption = message_data.get("content", "")
                     if client_type == "telethon":
                         await client.send_file(target_id, file_id, caption=caption)
