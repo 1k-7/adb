@@ -336,8 +336,97 @@ async def show_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(status_text, parse_mode=ParseMode.HTML)
 
 #
-# --- NEW HELP COMMAND ---
+# --- SESSION MANAGEMENT COMMANDS (UPDATED) ---
 #
+@auth_required
+async def list_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Lists all accounts and their status.
+    **NOW SHOWS THE ERROR REASON.**
+    """
+    accounts = accounts_collection.find({})
+    account_list = []
+    
+    for acc in accounts:
+        session_file = html.escape(acc.get('_id', 'N/A'))
+        status = html.escape(acc.get('status', 'N/A').capitalize())
+        
+        # --- THIS IS THE UPDATED PART ---
+        status_line = f"<code>{session_file}</code> - <b>{status}</b>"
+        if status == "Error":
+            error_msg = acc.get("error_message", "No reason provided")
+            status_line += f" (<i>Reason: {html.escape(error_msg)}</i>)"
+        # --- END OF UPDATE ---
+            
+        account_list.append(status_line)
+    
+    if not account_list:
+        await update.message.reply_text("No accounts have been added yet.")
+        return
+        
+    await update.message.reply_text("<b>Managing Accounts:</b>\n" + "\n".join(account_list),
+                                    parse_mode=ParseMode.HTML)
+
+@auth_required
+async def remove_session(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Removes a single session by its filename."""
+    if not context.args:
+        await update.message.reply_text("Usage: <code>/remove_session &lt;session_filename.session&gt;</code>\n"
+                                        "Use /list_sessions to get the filename.",
+                                        parse_mode=ParseMode.HTML)
+        return
+
+    session_name = context.args[0]
+    
+    # Remove from database
+    result = accounts_collection.delete_one({"_id": session_name})
+    
+    if result.deleted_count > 0:
+        # Also remove the file from the /sessions directory
+        try:
+            session_path = os.path.join("sessions", session_name)
+            if os.path.exists(session_path):
+                os.remove(session_path)
+            
+            # Also remove the .journal file if it exists (for pyrogram)
+            journal_path = f"{session_path}-journal"
+            if os.path.exists(journal_path):
+                os.remove(journal_path)
+                
+        except Exception as e:
+            await update.message.reply_text(f"DB entry removed, but file error: {e}")
+            return
+            
+        await update.message.reply_text(f"🗑️ Session <code>{html.escape(session_name)}</code> removed.",
+                                        parse_mode=ParseMode.HTML)
+    else:
+        await update.message.reply_text(f"❌ Session <code>{html.escape(session_name)}</code> not found in database.",
+                                        parse_mode=ParseMode.HTML)
+
+@auth_required
+async def clear_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Removes ALL sessions from the bot."""
+    
+    # 1. Clear from Database
+    count = accounts_collection.delete_many({}).deleted_count
+    
+    # 2. Clear from File System
+    sessions_dir = "sessions"
+    file_count = 0
+    if os.path.exists(sessions_dir):
+        for filename in os.listdir(sessions_dir):
+            file_path = os.path.join(sessions_dir, filename)
+            try:
+                os.remove(file_path)
+                file_count += 1
+            except Exception as e:
+                print(f"Error removing file {file_path}: {e}")
+
+    await update.message.reply_text(f"🔥 <b>All Sessions Cleared</b>\n"
+                                    f"- {count} database entries removed.\n"
+                                    f"- {file_count} files removed from disk.",
+                                    parse_mode=ParseMode.HTML)
+
 @auth_required
 async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows the help message with all commands."""
@@ -347,7 +436,10 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"  /start or /status - Show bot status\n"
         f"  /help - Show this help message\n\n"
         f"<b>Accounts:</b>\n"
-        f"  /add_account - Start conversation to add a new account\n\n"
+        f"  /add_account - Start conversation to add a new account\n"
+        f"  /list_sessions - List all added sessions and status\n"
+        f"  /remove_session <code>&lt;filename&gt;</code> - Remove one session\n"
+        f"  /clear_sessions - Remove ALL sessions\n\n"
         f"<b>Messaging:</b>\n"
         f"  /set_message - Set the message to send/forward\n\n"
         f"<b>Targets:</b>\n"
@@ -397,11 +489,14 @@ def main():
     app.add_handler(CommandHandler("clear_targets", clear_targets))
     app.add_handler(CommandHandler("list_targets", list_targets))
     app.add_handler(CommandHandler("set_interval", set_interval))
-    
-    #
-    # --- ADD THE NEW HELP HANDLER ---
-    #
     app.add_handler(CommandHandler("help", show_help))
+
+    #
+    # --- ADD NEW SESSION HANDLERS ---
+    #
+    app.add_handler(CommandHandler("list_sessions", list_sessions))
+    app.add_handler(CommandHandler("remove_session", remove_session))
+    app.add_handler(CommandHandler("clear_sessions", clear_sessions))
     
     print("Admin Bot started...")
     app.run_polling()
