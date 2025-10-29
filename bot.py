@@ -335,6 +335,33 @@ async def show_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(status_text, parse_mode=ParseMode.HTML)
 
+#
+# --- NEW HELP COMMAND ---
+#
+@auth_required
+async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Shows the help message with all commands."""
+    help_text = (
+        f"<b>🤖 Bot Command List</b>\n\n"
+        f"<b>Management:</b>\n"
+        f"  /start or /status - Show bot status\n"
+        f"  /help - Show this help message\n\n"
+        f"<b>Accounts:</b>\n"
+        f"  /add_account - Start conversation to add a new account\n\n"
+        f"<b>Messaging:</b>\n"
+        f"  /set_message - Set the message to send/forward\n\n"
+        f"<b>Targets:</b>\n"
+        f"  /add_target <code>&lt;id/@username&gt;</code> - Add a target chat\n"
+        f"  /list_targets - List all current targets\n"
+        f"  /clear_targets - Clear all targets\n\n"
+        f"<b>Scheduler:</b>\n"
+        f"  /set_interval <code>&lt;min&gt; &lt;max&gt;</code> - Set random interval in minutes\n\n"
+        f"<b>Other:</b>\n"
+        f"  /cancel - Cancel the current operation"
+    )
+    await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
+
+
 def main():
     """Starts the admin bot."""
     app = Application.builder().token(BOT_TOKEN).build()
@@ -370,6 +397,11 @@ def main():
     app.add_handler(CommandHandler("clear_targets", clear_targets))
     app.add_handler(CommandHandler("list_targets", list_targets))
     app.add_handler(CommandHandler("set_interval", set_interval))
+    
+    #
+    # --- ADD THE NEW HELP HANDLER ---
+    #
+    app.add_handler(CommandHandler("help", show_help))
     
     print("Admin Bot started...")
     app.run_polling()
