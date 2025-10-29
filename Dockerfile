@@ -13,13 +13,21 @@ COPY requirements.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application code
 COPY . .
 
 # Create the directory for session files
 RUN mkdir sessions
+
+#
+# --- NEW ---
+# Create a non-root user and give it permissions
+RUN adduser -D -g '' appuser && chown -R appuser:appuser /app
+# Switch to this new user
+USER appuser
+# --- END NEW ---
 
 # Make the start script executable
 RUN chmod +x ./start.sh

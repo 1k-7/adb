@@ -9,6 +9,7 @@ python -u bot.py &
 python -u worker.py &
 
 echo "Starting web service in foreground..."
-# Start Gunicorn in the foreground
-# Koyeb will health-check this process
-exec gunicorn --bind 0.0.0.0:$PORT main:app
+#
+# --- MODIFIED ---
+# Force Gunicorn to use only ONE worker to avoid conflicts
+exec gunicorn --bind 0.0.0.0:$PORT --workers=1 main:app
